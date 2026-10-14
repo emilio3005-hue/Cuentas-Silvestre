@@ -1,0 +1,1303 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Panel Silvestre-Díaz</title><style>[hidden]:not([hidden=until-found i]){display:none!important}body{background:#faf9f5;color:#141413}</style></head><body style="margin:0">
+
+<style>
+#lock{position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:#faf9f5;padding:16px}
+@media (prefers-color-scheme:dark){#lock{background:#1f1e1d;color:#f5f4ee}}
+#lock form{width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;font:15px 'IBM Plex Sans',system-ui,sans-serif}
+#lock h1{font-size:20px;margin:0}
+#lock input{font:inherit;padding:11px 12px;border:1px solid #bbb;border-radius:10px;background:transparent;color:inherit}
+#lock button{font:600 15px inherit;font-family:inherit;padding:11px;border-radius:10px;border:0;background:#2b6cb0;color:#fff;cursor:pointer}
+#lock .err{color:#c0392b;min-height:1.2em;font-size:13px}
+</style>
+<div id="lock"><form id="lock-form"><h1>Panel Silvestre-Díaz</h1><label for="pw" style="font-size:13px">Contraseña</label><input id="pw" type="password" autocomplete="current-password" autofocus><div class="err" id="lock-err"></div><button type="submit">Entrar</button></form></div>
+<script>
+(function(){
+  var b64 = function(s){ return Uint8Array.from(atob(s), function(c){ return c.charCodeAt(0); }); };
+  var done;
+  var ready = new Promise(function(r){ done = r; });
+  function mkDb(D){
+    var store = JSON.parse(JSON.stringify(D));
+    var pg = {}; try { pg = JSON.parse(localStorage.getItem('pagos_local') || '{}'); } catch(e){}
+    function snapDocs(arr){ return {docs: arr.map(function(m){ return {id: m.id, data: function(){ return m; }}; })}; }
+    return {
+      collection: function(n){
+        return {
+          orderBy: function(){ return { onSnapshot: function(cb){ cb(snapDocs(store.meses)); } }; },
+          onSnapshot: function(cb){
+            var ids = Object.keys(store.pagos);
+            cb({docs: ids.map(function(i){ return {id: i, data: function(){ return {p: pg[i] || store.pagos[i].p || {}}; }}; })});
+          },
+          add: function(){ return Promise.resolve(); }
+        };
+      },
+      doc: function(path){
+        return {
+          onSnapshot: function(cb){ cb({exists: true, data: function(){ return store.meta || {}; }}); },
+          set: function(v){ var m = path.split('/')[1]; pg[m] = v.p; try { localStorage.setItem('pagos_local', JSON.stringify(pg)); } catch(e){} return Promise.resolve(); },
+          update: function(){ return Promise.resolve(); },
+          get: function(){ return Promise.resolve({exists: false, data: function(){ return {}; }}); }
+        };
+      }
+    };
+  }
+  window.claude = { use: function(n){ return n === 'db' ? ready : Promise.resolve(null); } };
+  document.getElementById('lock-form').addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    var err = document.getElementById('lock-err'); err.textContent = '';
+    try {
+      var enc = await (await fetch('data.enc.json', {cache: 'no-store'})).json();
+      var km = await crypto.subtle.importKey('raw', new TextEncoder().encode(document.getElementById('pw').value), 'PBKDF2', false, ['deriveKey']);
+      var key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b64(enc.salt), iterations: enc.iter, hash: 'SHA-256'}, km, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+      var pt = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b64(enc.iv)}, key, b64(enc.ct));
+      var D = JSON.parse(new TextDecoder().decode(pt));
+      document.getElementById('lock').remove();
+      done(mkDb(D));
+    } catch(e){ err.textContent = 'Contraseña incorrecta.'; }
+  });
+})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F5EF;
+    --surface:#FFFFFF;
+    --surface-2:#F0EDE4;
+    --ink:#1E2027;
+    --ink-2:#5B5F6B;
+    --ink-3:#8B8E99;
+    --border:#E3E0D5;
+    --accent:#2F3B57;
+    --accent-ink:#FFFFFF;
+    --good:#2E9F6D;
+    --bad:#C0512E;
+    --c-santander:#D93B3B;
+    --c-visa:#2B63D9;
+    --c-master:#D98A2B;
+    --c-mumi:#7A56D9;
+    --c-santander-soft:#F7E4E4;
+    --c-visa-soft:#E2EAFB;
+    --c-master-soft:#F8EBD9;
+    --c-mumi-soft:#EBE5FA;
+    --shadow: 0 1px 2px rgba(30,32,39,.06), 0 8px 24px -12px rgba(30,32,39,.18);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15161A;
+      --surface:#1D1F25;
+      --surface-2:#24262D;
+      --ink:#ECEAE4;
+      --ink-2:#A3A6B0;
+      --ink-3:#797D89;
+      --border:#2C2E36;
+      --accent:#8E9BC2;
+      --accent-ink:#15161A;
+      --good:#4CBB8A;
+      --bad:#E08661;
+      --c-santander:#E8635F;
+      --c-visa:#5C8DF2;
+      --c-master:#C77A2E;
+      --c-mumi:#9B7DE8;
+      --c-santander-soft:#332224;
+      --c-visa-soft:#20293B;
+      --c-master-soft:#332921;
+      --c-mumi-soft:#2A2536;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15161A;
+    --surface:#1D1F25;
+    --surface-2:#24262D;
+    --ink:#ECEAE4;
+    --ink-2:#A3A6B0;
+    --ink-3:#797D89;
+    --border:#2C2E36;
+    --accent:#8E9BC2;
+    --accent-ink:#15161A;
+    --good:#4CBB8A;
+    --bad:#E08661;
+    --c-santander:#E8635F;
+    --c-visa:#5C8DF2;
+    --c-master:#C77A2E;
+    --c-mumi:#9B7DE8;
+    --c-santander-soft:#332224;
+    --c-visa-soft:#20293B;
+    --c-master-soft:#332921;
+    --c-mumi-soft:#2A2536;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    padding-inline:16px;
+    padding-block:16px 40px;
+  }
+  h1,h2,h3{font-family:'Sora',system-ui,sans-serif; margin:0; text-wrap:balance;}
+  .num{font-family:'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+  .wrap{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:18px;}
+
+  /* header */
+  .topbar{
+    position:sticky; top:env(safe-area-inset-top, 0px);
+    z-index:20; margin-inline:-16px; padding:12px 16px calc(12px + env(safe-area-inset-top,0px));
+    padding-top:12px;
+    background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar-inner{max-width:760px; margin:0 auto;}
+  .brand{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .brand h1{font-size:20px; font-weight:800; letter-spacing:-.01em;}
+  .brand .asof{font-size:11px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em;}
+  .subtitle{font-size:13px; color:var(--ink-2); margin-top:2px;}
+
+  .months{
+    display:flex; gap:6px; overflow-x:auto; margin-top:12px; padding-bottom:2px;
+    scrollbar-width:thin;
+  }
+  .months::-webkit-scrollbar{height:5px;}
+  .months::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px;}
+  .month-chip{
+    flex:0 0 auto; border:1px solid var(--border); background:var(--surface);
+    color:var(--ink-2); font:500 12.5px 'IBM Plex Sans',sans-serif; text-transform:capitalize;
+    padding:7px 13px; border-radius:999px; cursor:pointer; white-space:nowrap;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .month-chip:hover{border-color:var(--ink-3);}
+  .month-chip[aria-pressed="true"]{
+    background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600;
+  }
+
+  /* hero balances */
+  .hero-balances{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .hero-tile{
+    background:var(--surface); border:1.5px solid var(--border); border-radius:16px;
+    padding:16px 17px; box-shadow:var(--shadow);
+  }
+  .hero-tile .hero-label{font-size:12px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; font-weight:700;}
+  .hero-tile .hero-value{font-size:27px; font-weight:700; margin-top:5px; display:flex; align-items:center; gap:6px;}
+  .hero-tile .hero-value.neg{color:var(--bad);}
+  .hero-tile .hero-value.pos{color:var(--good);}
+  .hero-tile .hero-sub{font-size:11.5px; color:var(--ink-3); margin-top:5px;}
+  .hero-tile .arrow{font-size:15px;}
+
+  .mini-stats{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12.5px; color:var(--ink-2); padding:0 2px;}
+  .mini-stats b{font-family:'IBM Plex Mono', ui-monospace, monospace; font-weight:600;}
+  .mini-stats b.neg{color:var(--bad);}
+  .mini-stats b.pos{color:var(--good);}
+
+  .section-title{font-size:13px; color:var(--ink); font-weight:700; margin:2px 2px 0;}
+  .section-hint{font-size:11.5px; color:var(--ink-3); margin:-4px 2px 0;}
+
+  /* overview (legacy alias kept for compare bar spacing) */
+  .stat{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:14px 16px; box-shadow:var(--shadow);
+  }
+  .stat .label{font-size:11px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; font-weight:600;}
+  .stat .value{font-size:22px; font-weight:600; margin-top:4px; display:flex; align-items:center; gap:6px;}
+  .stat .value.neg{color:var(--bad);}
+  .stat .value.pos{color:var(--good);}
+  .stat .arrow{font-size:14px;}
+
+  /* ingresos / gastos mini-ledgers */
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .mini-ledger{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column;
+  }
+  .mini-ledger-head{
+    display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+    padding:10px 14px; border-bottom:1px solid var(--border);
+  }
+  .mini-ledger-head .who{font-size:12.5px; font-weight:700;}
+  .mini-ledger-head .mini-total{font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:13px; font-weight:600;}
+  .mini-ledger-items{max-height:240px; overflow-y:auto;}
+  .mini-item-row{
+    display:flex; justify-content:space-between; gap:8px; padding:7px 14px;
+    font-size:12px; border-bottom:1px solid var(--border);
+  }
+  .mini-item-row:last-child{border-bottom:none;}
+  .mini-item-row .c{color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mini-item-row .v{flex:0 0 auto; font-family:'IBM Plex Mono', ui-monospace, monospace;}
+  .mini-item-row .v.income{color:var(--good);}
+  #irma-items .mini-item-row .v.expense{color:var(--bad);}
+  .mini-ledger-head .mini-total.neg{color:var(--bad);}
+  .mini-ledger-head .mini-total.pos{color:var(--good);}
+  .mini-item-row .c i{font-style:normal; color:var(--ink-3); font-size:11px;}
+  .mini-item-row .v.expense{color:var(--ink);}
+  .mini-empty{padding:14px; text-align:center; color:var(--ink-3); font-size:12px;}
+
+  /* comparison bars */
+  .compare{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:16px; box-shadow:var(--shadow);
+  }
+  .compare h2{font-size:13px; color:var(--ink-2); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px;}
+  .cbar-row{display:flex; align-items:center; gap:10px; margin-bottom:9px;}
+  .cbar-row:last-child{margin-bottom:0;}
+  .cbar-dot{width:9px; height:9px; border-radius:50%; flex:0 0 auto;}
+  .cbar-name{font-size:12.5px; color:var(--ink-2); width:108px; flex:0 0 auto;}
+  .cbar-track{flex:1; background:var(--surface-2); border-radius:5px; height:16px; overflow:hidden;}
+  .cbar-fill{height:100%; border-radius:5px; min-width:2px;}
+  .cbar-val{font-size:12.5px; width:96px; text-align:right; flex:0 0 auto;}
+
+  /* card buttons */
+  .cards-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  @media (max-width:480px){ .cards-grid{grid-template-columns:1fr;} .hero-balances{grid-template-columns:1fr;} .two-col{grid-template-columns:1fr;} }
+
+  .card-btn{
+    text-align:left; border:1.5px solid var(--border); background:var(--surface);
+    border-radius:14px; padding:14px 15px; cursor:pointer; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:8px; position:relative;
+    transition:border-color .15s, transform .1s;
+  }
+  .card-btn:hover{transform:translateY(-1px);}
+  .card-btn[aria-pressed="true"]{border-color:var(--card-c);}
+  .card-btn .top-row{display:flex; align-items:center; justify-content:space-between;}
+  .card-btn .name{font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:7px;}
+  .card-btn .dot{width:10px; height:10px; border-radius:3px; background:var(--card-c);}
+  .card-btn .count{font-size:11px; color:var(--ink-3); background:var(--surface-2); padding:2px 7px; border-radius:999px;}
+  .card-btn .total{font-size:21px; font-weight:600;}
+  .card-btn .total.neg{color:var(--bad);}
+  .card-btn .total.pos{color:var(--good);}
+  .card-btn .hint{font-size:11px; color:var(--ink-3);}
+
+  /* detail */
+  .detail{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .detail-head{
+    padding:16px 16px 12px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;
+  }
+  .detail-head .name{font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px;}
+  .detail-head .dot{width:11px; height:11px; border-radius:3px; background:var(--card-c);}
+  .detail-head .total{font-size:19px; font-weight:600;}
+  .filter-row{padding:10px 16px; border-bottom:1px solid var(--border);}
+  .filter-row input{
+    width:100%; border:1px solid var(--border); background:var(--surface-2); color:var(--ink);
+    font:13px 'IBM Plex Sans',sans-serif; padding:8px 10px; border-radius:8px; outline:none;
+  }
+  .filter-row input:focus{border-color:var(--card-c);}
+  .items{max-height:420px; overflow-y:auto;}
+  .item-row{
+    display:flex; align-items:center; gap:10px; padding:9px 16px;
+    border-bottom:1px solid var(--border);
+  }
+  .item-row:last-child{border-bottom:none;}
+  .item-bar-wrap{flex:1; min-width:0;}
+  .item-concept{font-size:12.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .item-track{background:var(--surface-2); border-radius:4px; height:6px; margin-top:5px; overflow:hidden;}
+  .item-fill{height:100%; border-radius:4px; background:var(--card-c); opacity:.85;}
+  .item-amt{font-size:12.5px; width:104px; text-align:right; flex:0 0 auto;}
+  .item-amt.neg{color:var(--bad);}
+  .item-amt.pos{color:var(--good);}
+  .empty-note{padding:24px 16px; text-align:center; color:var(--ink-3); font-size:13px;}
+
+  .section-label{font-size:12px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.07em; font-weight:600; margin:2px 2px -2px;}
+
+  .ledger-note{
+    padding:9px 16px; font-size:11.5px; color:var(--ink-3); background:var(--surface-2);
+    border-bottom:1px solid var(--border);
+  }
+
+  .pay-btn{flex:0 0 auto; font:600 10.5px 'IBM Plex Sans',sans-serif; border-radius:999px; padding:2px 9px; cursor:pointer; border:1px solid; line-height:1.5; white-space:nowrap;}
+  .pay-btn.pend{color:var(--bad); background:color-mix(in srgb, var(--bad) 13%, transparent); border-color:var(--bad);}
+  .pay-btn.paid{color:var(--good); background:color-mix(in srgb, var(--good) 15%, transparent); border-color:var(--good);}
+  .pay-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .mini-item-row.paid .v{color:var(--good);}
+  .mini-item-row.pend .v{color:var(--bad);}
+  .mini-item-row .c{flex:1 1 auto; min-width:0;}
+  .mini-item-row{align-items:center;}
+  footer{font-size:11px; color:var(--ink-3); text-align:center; padding-top:6px;}
+  .mini-item-row.off .c,.mini-item-row.off .v{color:var(--ink-3); font-style:italic;}
+  .state-note{padding:14px 16px; border:1px dashed var(--border); border-radius:12px; color:var(--ink-2); font-size:13px; background:var(--surface);}
+  .item-row.dif .item-concept{font-style:italic; color:var(--ink-2);}
+  .chat{background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column;}
+  .chat-log{display:flex; flex-direction:column; gap:8px; padding:14px; max-height:380px; min-height:120px; overflow-y:auto;}
+  .chat-empty{color:var(--ink-3); font-size:12.5px; padding:6px 2px;}
+  .msg{max-width:88%; padding:9px 12px; border-radius:12px; font-size:13.5px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; min-width:0;}
+  .msg.user{align-self:flex-end; background:var(--accent); color:var(--accent-ink);}
+  .msg.bot{align-self:flex-start; background:var(--surface-2); color:var(--ink);}
+  .msg.bot.pending{color:var(--ink-3); font-style:italic;}
+  .msg.change{align-self:stretch; max-width:100%; background:transparent; border:1px dashed var(--border); color:var(--ink-2); font-size:12px; padding:6px 10px;}
+  .chat-form{display:flex; flex-direction:column; gap:8px; padding:12px 14px 14px; border-top:1px solid var(--border);}
+  .chat-form textarea{width:100%; resize:vertical; min-height:48px; max-height:160px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font:14px 'IBM Plex Sans',sans-serif; padding:9px 11px; border-radius:10px; outline:none;}
+  .chat-form textarea:focus{border-color:var(--accent);}
+  .chat-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .chat-status{flex:1 1 auto; font-size:12px; color:var(--ink-3); min-width:0;}
+  .chat-actions button{font:600 13px 'IBM Plex Sans',sans-serif; border-radius:9px; padding:8px 14px; cursor:pointer; border:1px solid var(--border); background:var(--surface); color:var(--ink);}
+  .chat-actions button:focus-visible,.chat-form textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .chat-actions #chat-send{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+  .chat-actions button:disabled{opacity:.5; cursor:not-allowed;}
+  #chat-undo{font-weight:500; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .chat.drag{outline:2px dashed var(--accent); outline-offset:-4px;}
+  .chat-files{display:flex; flex-wrap:wrap; gap:6px;}
+  .file-chip{display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:4px 6px 4px 10px; border:1px solid var(--border); border-radius:999px; background:var(--surface-2); font-size:12px; color:var(--ink);}
+  .file-chip span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
+  .file-chip button{border:0; background:transparent; color:var(--ink-2); font-size:16px; line-height:1; cursor:pointer; padding:0 4px; border-radius:6px;}
+  .file-chip button:hover{color:var(--bad);}
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>Panel Silvestre-Díaz</h1>
+      <span class="asof" id="asof">Cargando…</span>
+    </div>
+    <div class="subtitle">Ingresos, gastos y tarjetas de un vistazo — tocá un mes</div>
+    <div class="months" id="months" role="tablist" aria-label="Mes"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="hero-balances">
+    <div class="hero-tile">
+      <div class="hero-label">Le queda a Flor</div>
+      <div class="hero-value" id="hero-flor"></div>
+      <div class="hero-sub" id="hero-flor-sub"></div>
+    </div>
+    <div class="hero-tile">
+      <div class="hero-label">Le queda a Emilio</div>
+      <div class="hero-value" id="hero-mumi"></div>
+      <div class="hero-sub" id="hero-mumi-sub"></div>
+    </div>
+  </div>
+  <div class="mini-stats">
+    <span>Total del hogar: <b id="mini-total-val" class="num"></b></span>
+    <span>Cuenta con Irma: <b id="mini-irma-val" class="num"></b></span>
+    <span>Falta pagar · Flor <b id="pend-flor" class="num"></b> · Emilio <b id="pend-mumi" class="num"></b></span>
+  </div>
+
+  <div class="section-title">Cuenta con Irma</div>
+  <div class="section-hint">Ella usa nuestra tarjeta (Tele, Verisure) y nosotros la suya (Cuota IES). En rojo: Irma nos tiene que abonar.</div>
+  <div class="mini-ledger">
+    <div class="mini-ledger-head"><span class="who" id="irma-note">Saldo</span><span class="mini-total num" id="irma-total"></span></div>
+    <div class="mini-ledger-items" id="irma-items"></div>
+  </div>
+
+  <div class="section-title">Ingresos</div>
+  <div class="two-col">
+    <div class="mini-ledger">
+      <div class="mini-ledger-head"><span class="who">Flor</span><span class="mini-total num" id="ing-flor-total"></span></div>
+      <div class="mini-ledger-items" id="ing-flor-items"></div>
+    </div>
+    <div class="mini-ledger">
+      <div class="mini-ledger-head"><span class="who">Emilio</span><span class="mini-total num" id="ing-mumi-total"></span></div>
+      <div class="mini-ledger-items" id="ing-mumi-items"></div>
+    </div>
+  </div>
+
+  <div class="section-title">Gastos mensuales</div>
+  <div class="section-hint">Tocá el botón de cada gasto: rojo = pendiente, verde = pagado. Los renglones en gris figuran pero no entran en el saldo.</div>
+  <div class="two-col">
+    <div class="mini-ledger">
+      <div class="mini-ledger-head"><span class="who">Flor</span><span class="mini-total num" id="gas-flor-total"></span></div>
+      <div class="mini-ledger-items" id="gas-flor-items"></div>
+    </div>
+    <div class="mini-ledger">
+      <div class="mini-ledger-head"><span class="who">Emilio</span><span class="mini-total num" id="gas-mumi-total"></span></div>
+      <div class="mini-ledger-items" id="gas-mumi-items"></div>
+    </div>
+  </div>
+
+  <div class="section-title">Urgencias</div>
+  <div class="section-hint">Siempre lo cubre la Tía Tere: figura aparte y no entra en el saldo.</div>
+  <div class="mini-ledger">
+    <div class="mini-ledger-head"><span class="who">Cubre Tía Tere</span><span class="mini-total num" id="tere-total"></span></div>
+    <div class="mini-ledger-items" id="tere-items"></div>
+  </div>
+
+  <div class="section-title">Tarjetas</div>
+  <div class="compare">
+    <h2>Consumo por tarjeta</h2>
+    <div id="compare-rows"></div>
+  </div>
+
+  <div class="cards-grid" id="cards-grid"></div>
+
+  <div class="detail">
+    <div class="detail-head">
+      <div class="name"><span class="dot" id="detail-dot"></span><span id="detail-name"></span></div>
+      <div class="total num" id="detail-total"></div>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="filter-input" placeholder="Buscar gasto…" autocomplete="off">
+    </div>
+    <div class="items" id="detail-items"></div>
+  </div>
+
+  <div class="section-title" hidden>Chat del panel</div>
+  <div class="section-hint" hidden>Decime qué cargar o cambiar y lo hago acá. Ejemplo: “el sueldo de Flor de noviembre es 1.950.000”.</div>
+  <div class="chat" id="chat" hidden data-off>
+    <div class="chat-log" id="chat-log" aria-live="polite"><div class="chat-empty">Todavía no hay mensajes. Los cambios que se hagan quedan anotados acá y se pueden deshacer.</div></div>
+    <form class="chat-form" id="chat-form">
+      <label for="chat-input" class="sr-only" style="position:absolute;left:-9999px">Mensaje</label>
+      <div class="chat-files" id="chat-files" hidden></div>
+      <textarea id="chat-input" rows="2" placeholder="Escribí qué querés hacer, o adjuntá un resumen en PDF…"></textarea>
+      <input type="file" id="chat-file" multiple hidden>
+      <div class="chat-actions">
+        <button type="button" id="chat-attach">Adjuntar archivo</button>
+        <button type="button" id="chat-undo" disabled>Deshacer último cambio</button>
+        <span class="chat-status" id="chat-status"></span>
+        <button type="button" id="chat-stop" hidden>Detener</button>
+        <button type="submit" id="chat-send">Enviar</button>
+      </div>
+    </form>
+  </div>
+  <div class="state-note" id="chat-off" hidden></div>
+
+  <footer id="foot">Proyecto CUENTAS SILVESTRE · solo lectura · se actualiza cuando se publica</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var CARD_META = [
+    {key:'santander',      label:'Santander Flor',     css:'--c-santander'},
+    {key:'nacion_visa',    label:'Nación Visa Flor',   css:'--c-visa'},
+    {key:'nacion_master',  label:'Nación Master Flor', css:'--c-master'},
+    {key:'santander_mumi', label:'Santander Mumi',     css:'--c-mumi'}
+  ];
+  var MESES = [];
+  var PAGOS = {};
+  var DB = null;
+  var TZ = 'America/Argentina/Cordoba';
+  var state = {month:null, bucket:'santander', filter:'', userPicked:false};
+  var $ = function(id){ return document.getElementById(id); };
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function fmt(n){
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    var v = Math.round(Math.abs(n));
+    return (n < 0 && v !== 0 ? '-$' : '$') + v.toLocaleString('es-AR');
+  }
+  function cap(m){ return m.replace(/^\w/, function(c){ return c.toUpperCase(); }); }
+  function sum(list, f){ return list.reduce(function(s, it){ return s + (f ? f(it) : it.v); }, 0); }
+
+  // ---- reglas de cálculo (las del documento del proyecto) ----
+  function incl(list){ return (list || []).filter(function(it){ return it.s; }); }
+  function saldoFlor(md){ return sum(incl(md.flor)) - (md.irma || 0) + (md.ajuste_flor || 0); }
+  function saldoMumi(md){ return sum(incl(md.mumi)) + (md.ajuste_mumi || 0); }
+  function cardItems(md, key){
+    var c = (md.tarjetas || {})[key] || {items: [], ajuste: 0};
+    var items = (c.items || []).slice();
+    if (c.ajuste && Math.abs(c.ajuste) >= 1) items.push({c:'Diferencia con el resumen', v:c.ajuste, dif:true});
+    return items;
+  }
+  function cardTotal(md, key){ return sum(cardItems(md, key)); }
+
+  function currentId(){
+    var p = new Intl.DateTimeFormat('en-CA', {timeZone:TZ, year:'numeric', month:'2-digit'}).formatToParts(new Date());
+    var y = p.filter(function(x){ return x.type === 'year'; })[0].value;
+    var m = p.filter(function(x){ return x.type === 'month'; })[0].value;
+    return y + '-' + m;
+  }
+  function getMonth(){
+    for (var i = 0; i < MESES.length; i++) if (MESES[i].id === state.month) return MESES[i];
+    return null;
+  }
+
+  // ---- estructura fija ----
+  var monthsEl = $('months'), cardsGrid = $('cards-grid');
+  CARD_META.forEach(function(bm){
+    var btn = document.createElement('button');
+    btn.className = 'card-btn';
+    btn.type = 'button';
+    btn.style.setProperty('--card-c', 'var(' + bm.css + ')');
+    btn.setAttribute('data-bucket', bm.key);
+    btn.innerHTML = '<div class="top-row"><div class="name"><span class="dot"></span>' + esc(bm.label) + '</div><span class="count"></span></div><div class="total num"></div><div class="hint">Ver movimientos →</div>';
+    btn.addEventListener('click', function(){ state.bucket = bm.key; state.filter = ''; $('filter-input').value = ''; render(); });
+    cardsGrid.appendChild(btn);
+  });
+  $('filter-input').addEventListener('input', function(){ state.filter = this.value.trim().toLowerCase(); renderDetail(); });
+
+  function renderMonths(){
+    monthsEl.innerHTML = '';
+    MESES.forEach(function(md){
+      var b = document.createElement('button');
+      b.className = 'month-chip';
+      b.type = 'button';
+      b.textContent = cap(md.label || md.id);
+      b.setAttribute('role', 'tab');
+      b.setAttribute('data-month', md.id);
+      b.setAttribute('aria-pressed', md.id === state.month ? 'true' : 'false');
+      b.addEventListener('click', function(){ state.month = md.id; state.userPicked = true; render(); b.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'}); });
+      monthsEl.appendChild(b);
+    });
+  }
+
+  function setValueEl(el, val, withArrow){
+    el.classList.remove('neg', 'pos');
+    var arrow = '';
+    if (val !== null && val !== undefined && !isNaN(val)){
+      if (val < 0){ el.classList.add('neg'); if (withArrow) arrow = '<span class="arrow">▼</span>'; }
+      else if (val > 0){ el.classList.add('pos'); if (withArrow) arrow = '<span class="arrow">▲</span>'; }
+    }
+    el.innerHTML = arrow + '<span class="num">' + fmt(val) + '</span>';
+  }
+
+  function hkey(who, c){
+    var t = String(c == null ? '' : c).trim().toLowerCase(), h = 5381;
+    for (var i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) % 4294967296;
+    return who + '_' + h.toString(16);
+  }
+  function isPaid(mid, who, it){ var p = PAGOS[mid]; return !!(p && p[hkey(who, it.c)]); }
+  function togglePaid(mid, who, it){
+    if (!DB) return;
+    var prev = PAGOS[mid] || {}, nxt = Object.assign({}, prev), k = hkey(who, it.c);
+    if (nxt[k]) delete nxt[k]; else nxt[k] = 1;
+    PAGOS[mid] = nxt; render();
+    DB.doc('pagos/' + mid).set({p: nxt}).catch(function(){ PAGOS[mid] = prev; render(); });
+  }
+  function pendiente(md, who){
+    return (md[who] || []).reduce(function(t, it){
+      return t + (it.s && it.v < 0 && !isPaid(md.id, who, it) ? Math.abs(it.v) : 0);
+    }, 0);
+  }
+  function fillMini(elId, items, kind, who){
+    var el = $(elId);
+    el.innerHTML = '';
+    if (!items.length){ el.innerHTML = '<div class="mini-empty">Sin ítems este mes.</div>'; return; }
+    items.forEach(function(it){
+      var row = document.createElement('div');
+      var pay = kind === 'expense' && who && it.s && !it.irma, paid = pay && isPaid(state.month, who, it);
+      row.className = 'mini-item-row' + (it.s ? '' : ' off') + (pay ? (paid ? ' paid' : ' pend') : '');
+      row.innerHTML = '<span class="c">' + esc(it.c) + '</span><span class="v ' + kind + ' num">' + fmt(kind === 'expense' ? Math.abs(it.v) : it.v) + '</span>';
+      if (pay){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pay-btn ' + (paid ? 'paid' : 'pend');
+        b.textContent = paid ? 'Pagado ✓' : 'Pendiente';
+        b.setAttribute('aria-pressed', paid ? 'true' : 'false');
+        b.setAttribute('aria-label', (paid ? 'Marcar como pendiente: ' : 'Marcar como pagado: ') + it.c);
+        b.addEventListener('click', function(){ togglePaid(state.month, who, it); });
+        row.appendChild(b);
+      }
+      el.appendChild(row);
+    });
+  }
+
+  function ledgerColumn(who, list){
+    var income = (list || []).filter(function(it){ return it.v > 0; }).sort(function(a, b){ return b.v - a.v; });
+    var expense = (list || []).filter(function(it){ return it.v < 0; }).sort(function(a, b){ return a.v - b.v; });
+    $('ing-' + who + '-total').textContent = fmt(sum(incl(income)));
+    $('gas-' + who + '-total').textContent = fmt(Math.abs(sum(incl(expense))));
+    fillMini('ing-' + who + '-items', income, 'income');
+    fillMini('gas-' + who + '-items', expense, 'expense', who);
+  }
+
+  // Para mostrar: la cuenta con Irma figura como renglón fijo de Flor (ya está contada en el saldo vía md.irma, no se suma dos veces).
+  function florView(md){
+    var l = (md.flor || []).filter(function(it){ return !/URGENCIAS|VERISURE|TELE IRMA|CUOTA IES/i.test(it.c || ''); }), ir = md.irma || 0;
+    if (Math.round(ir) !== 0) l.push({c: ir < 0 ? 'IRMA NOS ABONA (cuenta con Irma)' : 'LE DEBEMOS A IRMA (cuenta con Irma)', v: -ir, s: 1, irma: true});
+    return l;
+  }
+
+  function renderIrma(md){
+    var rows = [];
+    (md.flor || []).forEach(function(it){
+      var c = String(it.c || '').toUpperCase();
+      if (/TELE IRMA|VERISURE/.test(c)) rows.push({c: it.c, v: it.v < 0 ? it.v : -it.v, tag: 'nos debe'});
+      else if (/CUOTA IES/.test(c)) rows.push({c: it.c, v: Math.abs(it.v), tag: 'a favor de Irma'});
+    });
+    var net = sum(rows), irma = md.irma || 0;
+    if (Math.abs(irma - net) >= 1) rows.push({c: 'Otros / ajuste del mes', v: irma - net, tag: ''});
+    var el = $('irma-items');
+    el.innerHTML = '';
+    if (!rows.length){ el.innerHTML = '<div class="mini-empty">Sin movimientos con Irma este mes.</div>'; }
+    rows.forEach(function(it){
+      var row = document.createElement('div');
+      row.className = 'mini-item-row';
+      row.innerHTML = '<span class="c">' + esc(it.c) + (it.tag ? ' · <i>' + it.tag + '</i>' : '') + '</span><span class="v ' + (it.v < 0 ? 'expense' : 'income') + ' num">' + fmt(it.v) + '</span>';
+      el.appendChild(row);
+    });
+    var t = $('irma-total'), n = $('irma-note');
+    t.classList.remove('neg', 'pos');
+    if (Math.round(irma) < 0){ t.classList.add('neg'); n.textContent = 'Irma nos tiene que abonar ' + fmt(Math.abs(irma)); }
+    else if (Math.round(irma) > 0){ t.classList.add('pos'); n.textContent = 'Le debemos a Irma ' + fmt(irma); }
+    else n.textContent = 'Están a mano';
+    t.textContent = fmt(irma);
+  }
+
+  function renderTere(md){
+    var rows = (md.flor || []).filter(function(it){ return /URGENCIAS/i.test(it.c || ''); });
+    var el = $('tere-items');
+    el.innerHTML = '';
+    if (!rows.length) el.innerHTML = '<div class="mini-empty">Sin urgencias este mes.</div>';
+    rows.forEach(function(it){
+      var row = document.createElement('div');
+      row.className = 'mini-item-row off';
+      row.innerHTML = '<span class="c">' + esc(it.c) + '</span><span class="v expense num">' + fmt(Math.abs(it.v)) + '</span>';
+      el.appendChild(row);
+    });
+    $('tere-total').textContent = fmt(Math.abs(sum(rows)));
+  }
+
+  function renderEmpty(msg){
+    ['hero-flor','hero-mumi','mini-total-val','mini-irma-val','irma-total','tere-total','ing-flor-total','ing-mumi-total','gas-flor-total','gas-mumi-total','detail-total'].forEach(function(id){ $(id).textContent = '—'; });
+    $('hero-flor-sub').textContent = ''; $('hero-mumi-sub').textContent = '';
+    ['irma-items','tere-items','ing-flor-items','ing-mumi-items','gas-flor-items','gas-mumi-items','compare-rows','detail-items'].forEach(function(id){ $(id).innerHTML = ''; });
+    $('detail-items').innerHTML = '<div class="state-note">' + esc(msg) + '</div>';
+    $('detail-name').textContent = 'Movimientos';
+  }
+
+  function render(){
+    renderMonths();
+    var md = getMonth();
+    if (!md){ return; }
+    var f = saldoFlor(md), m = saldoMumi(md);
+    var fv = florView(md);
+    var fi = sum(incl(fv).filter(function(i){ return i.v > 0; })), fe = sum(incl(fv).filter(function(i){ return i.v < 0; }));
+    var mi = sum(incl(md.mumi).filter(function(i){ return i.v > 0; })), me = sum(incl(md.mumi).filter(function(i){ return i.v < 0; }));
+    setValueEl($('hero-flor'), f, true);
+    $('hero-flor-sub').textContent = 'ingresos ' + fmt(fi) + ' · gastos ' + fmt(Math.abs(fe));
+    setValueEl($('hero-mumi'), m, true);
+    $('hero-mumi-sub').textContent = 'ingresos ' + fmt(mi) + ' · gastos ' + fmt(Math.abs(me));
+    setValueEl($('mini-total-val'), f + m, false);
+    setValueEl($('mini-irma-val'), md.irma || 0, false);
+    [['flor','pend-flor'],['mumi','pend-mumi']].forEach(function(p){
+      var el = $(p[1]), v = pendiente(md, p[0]);
+      el.classList.remove('neg','pos'); el.classList.add(v > 0 ? 'neg' : 'pos');
+      el.textContent = fmt(v);
+    });
+    renderIrma(md);
+    renderTere(md);
+    ledgerColumn('flor', fv);
+    ledgerColumn('mumi', md.mumi);
+
+    var totals = CARD_META.map(function(cm){ return cardTotal(md, cm.key); });
+    var maxTotal = Math.max.apply(null, totals.concat([1]));
+    var rows = $('compare-rows');
+    rows.innerHTML = '';
+    CARD_META.forEach(function(cm, i){
+      var pct = Math.max(2, Math.round((totals[i] / maxTotal) * 100));
+      var row = document.createElement('div');
+      row.className = 'cbar-row';
+      row.innerHTML = '<span class="cbar-dot" style="background:var(' + cm.css + ')"></span><span class="cbar-name">' + esc(cm.label) + '</span><span class="cbar-track"><span class="cbar-fill" style="width:' + pct + '%; background:var(' + cm.css + ')"></span></span><span class="cbar-val num">' + fmt(totals[i]) + '</span>';
+      rows.appendChild(row);
+    });
+    Array.prototype.forEach.call(cardsGrid.children, function(btn, i){
+      var bm = CARD_META[i];
+      btn.setAttribute('aria-pressed', bm.key === state.bucket ? 'true' : 'false');
+      btn.querySelector('.count').textContent = cardItems(md, bm.key).length + ' mov.';
+      btn.querySelector('.total').textContent = fmt(totals[i]);
+    });
+    renderDetail();
+  }
+
+  function renderDetail(){
+    var md = getMonth();
+    if (!md) return;
+    var bm = CARD_META.filter(function(b){ return b.key === state.bucket; })[0] || CARD_META[0];
+    var detail = document.querySelector('.detail');
+    detail.style.setProperty('--card-c', 'var(' + bm.css + ')');
+    $('detail-name').textContent = bm.label + ' · ' + cap(md.label || md.id);
+    $('detail-total').textContent = fmt(cardTotal(md, bm.key));
+    var items = cardItems(md, bm.key);
+    if (state.filter) items = items.filter(function(it){ return it.c.toLowerCase().indexOf(state.filter) >= 0; });
+    items.sort(function(a, b){ return Math.abs(b.v) - Math.abs(a.v); });
+    var maxAmt = Math.max.apply(null, items.map(function(it){ return Math.abs(it.v); }).concat([1]));
+    var wrap = $('detail-items');
+    wrap.innerHTML = '';
+    if (!items.length){
+      wrap.innerHTML = '<div class="empty-note">' + (state.filter ? 'Sin ítems que coincidan con “' + esc(state.filter) + '”.' : 'Sin movimientos cargados para este mes.') + '</div>';
+      return;
+    }
+    items.forEach(function(it){
+      var pct = Math.max(3, Math.round((Math.abs(it.v) / maxAmt) * 100));
+      var row = document.createElement('div');
+      row.className = 'item-row' + (it.dif ? ' dif' : '');
+      row.innerHTML = '<div class="item-bar-wrap"><div class="item-concept">' + esc(it.c) + '</div><div class="item-track"><div class="item-fill" style="width:' + pct + '%"></div></div></div><div class="item-amt num' + (it.v < 0 ? ' neg' : '') + '">' + fmt(it.v) + '</div>';
+      wrap.appendChild(row);
+    });
+  }
+
+  function onMonths(docs){
+    MESES = docs;
+    if (!MESES.length){
+      renderMonths();
+      $('asof').textContent = 'Sin datos todavía';
+      renderEmpty('Todavía no hay meses cargados. Pasale los datos a Claude en el proyecto CUENTAS SILVESTRE y los carga acá.');
+      return;
+    }
+    var ids = MESES.map(function(x){ return x.id; });
+    if (!state.userPicked || ids.indexOf(state.month) < 0){
+      state.month = ids.indexOf(currentId()) >= 0 ? currentId() : ids[ids.length - 1];
+    }
+    render();
+    if (!state.shown){
+      state.shown = true;
+      var act = monthsEl.querySelector('[aria-pressed="true"]');
+      if (act) act.scrollIntoView({inline:'center', block:'nearest'});
+    }
+  }
+
+
+  // =================== CHAT DEL PANEL ===================
+  var MES_NOMBRES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var TARJETAS = ['santander','nacion_visa','nacion_master','santander_mumi'];
+  var RULES = [
+    'Sos el asistente del Panel Silvestre-Díaz, el panel de finanzas del hogar de Emilio (proyecto CUENTAS SILVESTRE). Emilio te da órdenes y vos cargás o cambiás datos del panel con tus herramientas.',
+    'Estilo: español rioplatense, corto y directo, sin vueltas, texto plano sin markdown. No inventes montos ni conceptos. Si falta un dato o algo es ambiguo, hacé UNA sola pregunta antes de tocar nada.',
+    'Datos: cada mes (id AAAA-MM, por ejemplo 2026-10) tiene renglones de Flor y de Emilio (Mumi) con concepto, monto en pesos con signo (ingresos positivos, gastos negativos) y la marca entra_en_saldo. También tiene Irma (número con signo), dos ajustes (ajuste_flor, ajuste_mumi) y las tarjetas santander, nacion_visa, nacion_master y santander_mumi con sus consumos (montos positivos).',
+    'Saldos (los calcula el panel): Flor = renglones de Flor que entran en saldo, menos Irma, más ajuste_flor. Emilio = renglones de Emilio que entran en saldo, más ajuste_mumi. Entran en saldo para Flor: sueldo Flor, tía Tere, tía Ana, Santander Flor, Paola, Teléfonos, Cochera, Nación Visa, Nación Master, Gimnasia. NO entran: Urgencias, Inglés, Cuota IES, Tele Irma, Verisure. Para Emilio NO entran: Colegio Rufi, Cochera y el subtotal Sueldo total. El sueldo de Flor es un único renglón SUELDO FLOR por mes.',
+    'Usá el mes que Emilio nombre; si no nombra ninguno, el mes abierto en el panel. Para cambiar un monto existente usá modificar, no agregar un renglón nuevo. Antes de borrar algo que no pidieron borrar expresamente, preguntá. No podés crear ni borrar meses: si lo piden, decí que eso se hace en una conversación del proyecto.',
+    'Archivos: Emilio puede adjuntar PDF, imágenes, CSV o TXT. Los PDF e imágenes te llegan como imágenes en el mismo mensaje (el aviso dice cuántas páginas); leelos con cuidado, renglón por renglón. Para un resumen de tarjeta usá cargar_resumen_tarjeta UNA sola vez con todos los consumos, incluyendo impuestos, intereses y percepciones como consumos aparte, las cuotas con su número (ej. "DECATHLON 03-06") y los consumos en dólares con el campo usd (la herramienta los convierte). Pasá total_pesos_esperado con el total en pesos del resumen sin los dólares, así la herramienta verifica que no se te escapó nada. La tarjeta se deduce de la terminación: 4007 santander (Santander Flor), 3116 nacion_visa, 8639 nacion_master, 4897 santander_mumi. El mes es el del vencimiento del resumen (mes de pago). Si no podés deducir mes o tarjeta, preguntá. Al terminar decí cuánto da el resumen y qué mes y tarjeta tocaste.',
+    'Cada herramienta de edición guarda el cambio de inmediato y Emilio puede deshacer el último desde el botón del panel. Al terminar, confirmá en 1 a 3 líneas qué quedó y cuánto dan los saldos de Flor y de Emilio de ese mes (te los devuelve la herramienta). Si piden algo que no tiene que ver con este panel, decí que eso va en otra conversación.'
+  ].join('\n\n');
+
+  var chatState = {history: [], busy: false, ctl: null, undo: [], files: [], imgMax: 0};
+  var queue = Promise.resolve();
+  function serial(fn){ var p = queue.then(fn); queue = p.catch(function(){}); return p; }
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+  function toBool(x){ return x === true || x === 'true' || x === 1 || x === '1' || x === 'si' || x === 'sí'; }
+  function num(x){
+    var n;
+    if (typeof x === 'number') n = x;
+    else {
+      var t = String(x).trim().replace(/[$\s]/g, '');
+      if (t.indexOf(',') >= 0) n = Number(t.replace(/\./g, '').replace(',', '.'));
+      else if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) n = Number(t.replace(/\./g, ''));
+      else n = Number(t);
+    }
+    if (!isFinite(n)) throw new Error('El monto "' + x + '" no es un número válido.');
+    return Math.round(n * 100) / 100;
+  }
+  function norm(x){ return String(x == null ? '' : x).trim().toLowerCase(); }
+  function hoyAR(){ return new Intl.DateTimeFormat('es-AR', {timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric'}).format(new Date()); }
+
+  function normMes(x){
+    var t = norm(x);
+    if (/^\d{4}-\d{2}$/.test(t)) return t;
+    var i = MES_NOMBRES.indexOf(t.split(' ')[0]);
+    if (i >= 0){
+      var y = (t.match(/\d{4}/) || [currentId().slice(0, 4)])[0];
+      return y + '-' + String(i + 1).padStart(2, '0');
+    }
+    throw new Error('No entiendo el mes "' + x + '". Usá el formato AAAA-MM, por ejemplo 2026-10.');
+  }
+  function findLine(list, concepto){
+    var q = norm(concepto);
+    if (!q) throw new Error('Falta el concepto.');
+    var exact = [], part = [];
+    list.forEach(function(it, i){
+      var c = norm(it.c);
+      if (c === q) exact.push(i); else if (c.indexOf(q) >= 0) part.push(i);
+    });
+    var hit = exact.length ? exact : part;
+    if (hit.length === 1) return hit[0];
+    if (!hit.length) throw new Error('No encuentro ningún renglón que se llame "' + concepto + '". Renglones: ' + list.map(function(it){ return it.c; }).join('; '));
+    throw new Error('Hay ' + hit.length + ' renglones que coinciden con "' + concepto + '": ' + hit.map(function(i){ return list[i].c; }).join('; ') + '. Pedí que aclare cuál.');
+  }
+  function resumenSaldos(doc){ return {saldo_flor: Math.round(saldoFlor(doc)), saldo_mumi: Math.round(saldoMumi(doc))}; }
+
+  function logLine(kind, text){
+    var log = $('chat-log');
+    var empty = log.querySelector('.chat-empty'); if (empty) empty.remove();
+    var el = document.createElement('div');
+    el.className = kind === 'user' ? 'msg user' : kind === 'change' ? 'msg change' : 'msg bot';
+    el.textContent = text;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el;
+  }
+  function refreshUndo(){
+    var b = $('chat-undo'), last = chatState.undo[chatState.undo.length - 1];
+    b.disabled = !last || chatState.busy;
+    b.textContent = last ? 'Deshacer: ' + (last.texto.length > 38 ? last.texto.slice(0, 38) + '…' : last.texto) : 'Deshacer último cambio';
+  }
+  async function afterWrite(id, before, doc, texto){
+    chatState.undo.push({id: id, before: before, texto: texto});
+    state.month = id; state.userPicked = true;
+    try { await DB.doc('meta/panel').update({actualizado: hoyAR()}); } catch (e) {}
+    try { await DB.collection('historial').add({ts: new Date().toISOString(), mes: id, texto: texto, origen: 'chat del panel'}); } catch (e) {}
+    logLine('change', '✓ ' + texto);
+    refreshUndo();
+  }
+  async function readDoc(id){
+    var snap = await DB.doc('meses/' + id).get();
+    if (!snap.exists) throw new Error('No existe el mes ' + id + '. Meses cargados: ' + MESES.map(function(m){ return m.id; }).join(', '));
+    return clone(snap.data());
+  }
+  function fm(n){ return fmt(n); }
+
+  var TOOLS = [
+    {
+      name: 'leer_mes',
+      description: 'Devuelve los renglones de Flor y de Emilio de un mes (concepto, monto con signo, si entra en saldo), Irma, ajustes, total por tarjeta y los saldos calculados. Usala para ver el estado antes de editar.',
+      inputSchema: {type: 'object', properties: {mes: {type: 'string', description: 'Mes en formato AAAA-MM, por ejemplo 2026-10'}}, required: ['mes']},
+      execute: async function(inp){
+        var id = normMes(inp.mes), doc = await readDoc(id);
+        var tot = {};
+        TARJETAS.forEach(function(k){ tot[k] = Math.round(cardTotal(doc, k)); });
+        var out = resumenSaldos(doc);
+        out.mes = id;
+        out.flor = (doc.flor || []).map(function(it){ return it.c + ' | ' + it.v + ' | ' + (it.s ? 'entra en saldo' : 'no entra'); });
+        out.mumi = (doc.mumi || []).map(function(it){ return it.c + ' | ' + it.v + ' | ' + (it.s ? 'entra en saldo' : 'no entra'); });
+        out.irma = doc.irma || 0; out.ajuste_flor = doc.ajuste_flor || 0; out.ajuste_mumi = doc.ajuste_mumi || 0;
+        out.total_por_tarjeta = tot;
+        return out;
+      }
+    },
+    {
+      name: 'leer_tarjeta',
+      description: 'Devuelve todos los consumos de una tarjeta de un mes (concepto y monto) y su total.',
+      inputSchema: {type: 'object', properties: {mes: {type: 'string', description: 'AAAA-MM'}, tarjeta: {type: 'string', enum: TARJETAS}}, required: ['mes', 'tarjeta']},
+      execute: async function(inp){
+        var id = normMes(inp.mes), doc = await readDoc(id);
+        if (TARJETAS.indexOf(inp.tarjeta) < 0) throw new Error('Tarjeta inválida. Opciones: ' + TARJETAS.join(', '));
+        return {mes: id, tarjeta: inp.tarjeta, total: Math.round(cardTotal(doc, inp.tarjeta)), consumos: cardItems(doc, inp.tarjeta).map(function(it){ return it.c + ' | ' + it.v; })};
+      }
+    },
+    {
+      name: 'editar_renglon',
+      description: 'Agrega, modifica o elimina un renglón de ingresos/gastos de Flor o de Emilio en un mes. Guarda de inmediato y devuelve los saldos nuevos. Ingresos con monto positivo, gastos negativo. Para agregar es obligatorio indicar entra_en_saldo.',
+      inputSchema: {type: 'object', properties: {
+        mes: {type: 'string', description: 'AAAA-MM'},
+        quien: {type: 'string', enum: ['flor', 'mumi']},
+        accion: {type: 'string', enum: ['agregar', 'modificar', 'eliminar']},
+        concepto: {type: 'string', description: 'Nombre del renglón (para modificar/eliminar, el existente; para agregar, el nuevo)'},
+        monto: {type: 'number', description: 'Monto en pesos con signo. Obligatorio al agregar; opcional al modificar'},
+        nuevo_concepto: {type: 'string', description: 'Solo al modificar: nuevo nombre'},
+        entra_en_saldo: {type: 'boolean', description: 'Si el renglón suma al saldo. Obligatorio al agregar'}
+      }, required: ['mes', 'quien', 'accion', 'concepto']},
+      execute: function(inp){
+        return serial(async function(){
+          var id = normMes(inp.mes), who = norm(inp.quien) === 'emilio' ? 'mumi' : norm(inp.quien);
+          if (who !== 'flor' && who !== 'mumi') throw new Error('"quien" debe ser flor o mumi.');
+          var before = await readDoc(id), doc = clone(before), list = doc[who] || [], accion = norm(inp.accion), texto;
+          var quien = who === 'flor' ? 'Flor' : 'Emilio';
+          if (accion === 'agregar'){
+            if (inp.monto === undefined) throw new Error('Falta el monto.');
+            if (inp.entra_en_saldo === undefined) throw new Error('Falta indicar entra_en_saldo.');
+            var v = num(inp.monto), c = String(inp.concepto).trim();
+            list.push({c: c, v: v, s: toBool(inp.entra_en_saldo) ? 1 : 0});
+            texto = id + ' · ' + quien + ': agregado ' + c + ' ' + fm(v);
+          } else if (accion === 'modificar'){
+            var i = findLine(list, inp.concepto), it = list[i], old = it.v, oldName = it.c;
+            if (inp.monto !== undefined) it.v = num(inp.monto);
+            if (inp.nuevo_concepto) it.c = String(inp.nuevo_concepto).trim();
+            if (inp.entra_en_saldo !== undefined) it.s = toBool(inp.entra_en_saldo) ? 1 : 0;
+            texto = id + ' · ' + quien + ': ' + oldName + ' ' + fm(old) + ' → ' + (it.c !== oldName ? it.c + ' ' : '') + fm(it.v);
+          } else if (accion === 'eliminar'){
+            var j = findLine(list, inp.concepto), gone = list.splice(j, 1)[0];
+            texto = id + ' · ' + quien + ': eliminado ' + gone.c + ' ' + fm(gone.v);
+          } else throw new Error('"accion" debe ser agregar, modificar o eliminar.');
+          var patch = {}; patch[who] = list;
+          await DB.doc('meses/' + id).update(patch);
+          doc[who] = list;
+          await afterWrite(id, before, doc, texto);
+          var r = resumenSaldos(doc); r.ok = true; r.cambio = texto; return r;
+        });
+      }
+    },
+    {
+      name: 'editar_consumo',
+      description: 'Agrega, modifica o elimina un consumo de una tarjeta en un mes. Guarda de inmediato. Los montos de consumos son positivos. Devuelve el total nuevo de la tarjeta.',
+      inputSchema: {type: 'object', properties: {
+        mes: {type: 'string', description: 'AAAA-MM'},
+        tarjeta: {type: 'string', enum: TARJETAS},
+        accion: {type: 'string', enum: ['agregar', 'modificar', 'eliminar']},
+        concepto: {type: 'string'},
+        monto: {type: 'number', description: 'Monto positivo en pesos. Obligatorio al agregar'},
+        nuevo_concepto: {type: 'string', description: 'Solo al modificar'}
+      }, required: ['mes', 'tarjeta', 'accion', 'concepto']},
+      execute: function(inp){
+        return serial(async function(){
+          var id = normMes(inp.mes), k = inp.tarjeta;
+          if (TARJETAS.indexOf(k) < 0) throw new Error('Tarjeta inválida. Opciones: ' + TARJETAS.join(', '));
+          var before = await readDoc(id), doc = clone(before);
+          doc.tarjetas = doc.tarjetas || {};
+          var card = doc.tarjetas[k] = doc.tarjetas[k] || {items: [], ajuste: 0};
+          card.items = card.items || [];
+          var accion = norm(inp.accion), texto, label = k.replace('_', ' ');
+          if (accion === 'agregar'){
+            if (inp.monto === undefined) throw new Error('Falta el monto.');
+            var v = num(inp.monto), c = String(inp.concepto).trim();
+            card.items.push({c: c, v: v});
+            texto = id + ' · ' + label + ': agregado ' + c + ' ' + fm(v);
+          } else if (accion === 'modificar'){
+            var i = findLine(card.items, inp.concepto), it = card.items[i], old = it.v, oldName = it.c;
+            if (inp.monto !== undefined) it.v = num(inp.monto);
+            if (inp.nuevo_concepto) it.c = String(inp.nuevo_concepto).trim();
+            texto = id + ' · ' + label + ': ' + oldName + ' ' + fm(old) + ' → ' + (it.c !== oldName ? it.c + ' ' : '') + fm(it.v);
+          } else if (accion === 'eliminar'){
+            var j = findLine(card.items, inp.concepto), gone = card.items.splice(j, 1)[0];
+            texto = id + ' · ' + label + ': eliminado ' + gone.c + ' ' + fm(gone.v);
+          } else throw new Error('"accion" debe ser agregar, modificar o eliminar.');
+          await DB.doc('meses/' + id).update({tarjetas: doc.tarjetas});
+          await afterWrite(id, before, doc, texto);
+          return {ok: true, cambio: texto, total_tarjeta: Math.round(cardTotal(doc, k))};
+        });
+      }
+    },
+    {
+      name: 'cargar_resumen_tarjeta',
+      description: 'Carga de una vez el detalle completo de un resumen de tarjeta de un mes y actualiza el renglón de esa tarjeta en el ledger. Los consumos en dólares se pasan con usd y la herramienta los convierte. Si pasás total_pesos_esperado y la suma no coincide, no guarda nada y te dice la diferencia.',
+      inputSchema: {type: 'object', properties: {
+        mes: {type: 'string', description: 'Mes de pago AAAA-MM (el del vencimiento)'},
+        tarjeta: {type: 'string', enum: TARJETAS},
+        modo: {type: 'string', enum: ['reemplazar', 'agregar'], description: 'reemplazar (por defecto) borra el detalle actual de esa tarjeta en ese mes; agregar suma estos consumos al detalle actual'},
+        consumos: {type: 'array', description: 'Todos los renglones del resumen', items: {type: 'object', properties: {
+          concepto: {type: 'string'},
+          monto: {type: 'number', description: 'Pesos. Positivo; negativo solo para bonificaciones o devoluciones'},
+          usd: {type: 'number', description: 'Dólares, si el consumo es en U$S (en vez de monto)'}
+        }, required: ['concepto']}},
+        tipo_cambio: {type: 'number', description: 'Pesos por dólar para los consumos con usd. Por defecto 1566'},
+        total_pesos_esperado: {type: 'number', description: 'Total en pesos del resumen, sin los dólares, para verificar la suma'}
+      }, required: ['mes', 'tarjeta', 'consumos']},
+      execute: function(inp){
+        return serial(async function(){
+          var id = normMes(inp.mes), k = inp.tarjeta;
+          if (TARJETAS.indexOf(k) < 0) throw new Error('Tarjeta inválida. Opciones: ' + TARJETAS.join(', '));
+          if (!Array.isArray(inp.consumos) || !inp.consumos.length) throw new Error('No hay consumos para cargar.');
+          var tc = inp.tipo_cambio !== undefined ? num(inp.tipo_cambio) : 1566, items = [], sumPesos = 0, sumUsd = 0;
+          inp.consumos.forEach(function(it){
+            var c = String(it.concepto || '').trim();
+            if (!c) throw new Error('Hay un consumo sin concepto.');
+            if (it.usd !== undefined && it.usd !== null && Number(it.usd) !== 0){
+              var u = num(it.usd); sumUsd += u; items.push({c: c, v: Math.round(u * tc * 100) / 100});
+            } else {
+              var v = num(it.monto); sumPesos += v; items.push({c: c, v: v});
+            }
+          });
+          sumPesos = Math.round(sumPesos * 100) / 100;
+          if (inp.total_pesos_esperado !== undefined){
+            var esp = num(inp.total_pesos_esperado), dif = Math.round((sumPesos - esp) * 100) / 100;
+            if (Math.abs(dif) >= 1) throw new Error('La suma en pesos de lo que leíste es ' + fm(sumPesos) + ' y el resumen dice ' + fm(esp) + ' (diferencia ' + fm(dif) + '). No guardé nada. Revisá los montos y volvé a llamar.');
+          }
+          var before = await readDoc(id), doc = clone(before);
+          doc.tarjetas = doc.tarjetas || {};
+          var card = doc.tarjetas[k] = doc.tarjetas[k] || {items: [], ajuste: 0};
+          var modo = norm(inp.modo) === 'agregar' ? 'agregar' : 'reemplazar';
+          card.items = modo === 'agregar' ? (card.items || []).concat(items) : items;
+          if (modo === 'reemplazar') card.ajuste = 0;
+          var total = Math.round(cardTotal(doc, k) * 100) / 100;
+          var map = {santander: ['flor', 'SANTANDER RIO FLOR'], nacion_visa: ['flor', 'TARJ BANCO NACION visa'], nacion_master: ['flor', 'TARJ BANCO NACION master'], santander_mumi: ['mumi', 'SANTANDER MUMI']};
+          var who = map[k][0], lname = map[k][1], list = doc[who] || [], found = -1;
+          list.forEach(function(it, i){ if (found < 0 && norm(it.c) === norm(lname)) found = i; });
+          if (found >= 0) list[found].v = -total; else list.push({c: lname, v: -total, s: 1});
+          doc[who] = list;
+          var patch = {tarjetas: doc.tarjetas}; patch[who] = list;
+          await DB.doc('meses/' + id).update(patch);
+          var texto = id + ' · ' + k.replace('_', ' ') + ': ' + (modo === 'agregar' ? 'agregados ' : 'resumen cargado, ') + items.length + ' consumos. Total ' + fm(total) + (sumUsd ? ' (incluye U$S ' + sumUsd.toFixed(2).replace('.', ',') + ' a $' + tc + ')' : '');
+          await afterWrite(id, before, doc, texto);
+          var r = resumenSaldos(doc); r.ok = true; r.cambio = texto; r.total_tarjeta = total; r.consumos_cargados = items.length; return r;
+        });
+      }
+    },
+    {
+      name: 'editar_campo',
+      description: 'Cambia un número suelto de un mes: irma (cuenta con Irma, con signo), ajuste_flor o ajuste_mumi. Guarda de inmediato y devuelve los saldos nuevos.',
+      inputSchema: {type: 'object', properties: {
+        mes: {type: 'string', description: 'AAAA-MM'},
+        campo: {type: 'string', enum: ['irma', 'ajuste_flor', 'ajuste_mumi']},
+        valor: {type: 'number'}
+      }, required: ['mes', 'campo', 'valor']},
+      execute: function(inp){
+        return serial(async function(){
+          var id = normMes(inp.mes), campo = inp.campo;
+          if (['irma', 'ajuste_flor', 'ajuste_mumi'].indexOf(campo) < 0) throw new Error('Campo inválido.');
+          var before = await readDoc(id), doc = clone(before), old = doc[campo] || 0, v = num(inp.valor);
+          var patch = {}; patch[campo] = v;
+          await DB.doc('meses/' + id).update(patch);
+          doc[campo] = v;
+          var texto = id + ' · ' + campo + ': ' + fm(old) + ' → ' + fm(v);
+          await afterWrite(id, before, doc, texto);
+          var r = resumenSaldos(doc); r.ok = true; r.cambio = texto; return r;
+        });
+      }
+    }
+  ];
+
+  function ctxText(){
+    var md = getMonth(), ids = MESES.map(function(m){ return m.id; });
+    var s = '\n\n[Estado actual del panel]\nHoy: ' + hoyAR() + '. Mes abierto: ' + (md ? md.id : 'ninguno') + '. Meses cargados: ' + ids.join(', ') + '.';
+    if (md){
+      s += '\nMes ' + md.id + ' · saldo Flor ' + fm(saldoFlor(md)) + ' · saldo Emilio ' + fm(saldoMumi(md)) + ' · Irma ' + fm(md.irma || 0);
+      s += '\nRenglones de Flor:\n' + (md.flor || []).map(function(it){ return '- ' + it.c + ' | ' + it.v + (it.s ? '' : ' | no entra en saldo'); }).join('\n');
+      s += '\nRenglones de Emilio:\n' + (md.mumi || []).map(function(it){ return '- ' + it.c + ' | ' + it.v + (it.s ? '' : ' | no entra en saldo'); }).join('\n');
+    }
+    return s;
+  }
+
+
+  // ---- adjuntos ----
+  var PDFJS_BASE = window.__PDFJS_BASE || 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+  var pdfLoading = null;
+  function loadScript(src){
+    return new Promise(function(res, rej){
+      var el = document.createElement('script');
+      el.src = src; el.onload = res; el.onerror = function(){ rej(new Error('No se pudo cargar ' + src)); };
+      document.head.appendChild(el);
+    });
+  }
+  function loadPdfJs(){
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (!pdfLoading){
+      // el worker se carga como script común: así pdf.js trabaja en la misma página, sin Worker
+      pdfLoading = loadScript(PDFJS_BASE + 'pdf.worker.min.js').then(function(){ return loadScript(PDFJS_BASE + 'pdf.min.js'); }).then(function(){
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.js';
+        return window.pdfjsLib;
+      });
+      pdfLoading.catch(function(){ pdfLoading = null; });
+    }
+    return pdfLoading;
+  }
+  async function pdfToImages(file, maxPages){
+    var lib = await loadPdfJs();
+    var pdf = await lib.getDocument({data: await file.arrayBuffer()}).promise;
+    var n = Math.min(pdf.numPages, maxPages), blobs = [];
+    for (var i = 1; i <= n; i++){
+      var page = await pdf.getPage(i);
+      var v0 = page.getViewport({scale: 1}), scale = Math.min(2.2, 1100 / v0.width), vp = page.getViewport({scale: scale});
+      var cv = document.createElement('canvas');
+      cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+      var ctx = cv.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      await page.render({canvasContext: ctx, viewport: vp}).promise;
+      blobs.push(await new Promise(function(r){ cv.toBlob(r, 'image/jpeg', 0.88); }));
+      cv.width = 0; cv.height = 0;
+    }
+    return {blobs: blobs, total: pdf.numPages};
+  }
+  // Fotos de celular pesan varios MB y la API las rechaza: se achican a 1600 px y JPEG antes de mandarlas.
+  async function shrinkImage(file, okTypes){
+    var type = okTypes.indexOf('image/jpeg') >= 0 ? 'image/jpeg' : okTypes.indexOf('image/png') >= 0 ? 'image/png' : null;
+    if (!type || typeof createImageBitmap !== 'function') return null;
+    var bmp = await createImageBitmap(file);
+    var k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    var cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(bmp.width * k)); cv.height = Math.max(1, Math.round(bmp.height * k));
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+    if (bmp.close) bmp.close();
+    var q = 0.88, blob = null;
+    for (var i = 0; i < 4; i++){
+      blob = await new Promise(function(r){ cv.toBlob(r, type, q); });
+      if (!blob || blob.size <= 1500 * 1024 || type !== 'image/jpeg') break;
+      q -= 0.14;
+    }
+    cv.width = 0; cv.height = 0;
+    return blob;
+  }
+  function renderFiles(){
+    var box = $('chat-files');
+    box.innerHTML = '';
+    box.hidden = !chatState.files.length;
+    chatState.files.forEach(function(f, i){
+      var chip = document.createElement('span');
+      chip.className = 'file-chip';
+      var t = document.createElement('span');
+      t.textContent = f.name + (f.pages ? ' · ' + f.sent + (f.sent < f.pages ? ' de ' + f.pages : '') + ' pág.' : '');
+      var x = document.createElement('button');
+      x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Quitar ' + f.name);
+      x.addEventListener('click', function(){ chatState.files.splice(i, 1); renderFiles(); });
+      chip.appendChild(t); chip.appendChild(x); box.appendChild(chip);
+    });
+  }
+  function usedImages(){ return chatState.files.reduce(function(s, f){ return s + (f.blobs ? f.blobs.length : 0); }, 0); }
+  async function addFiles(list, lim){
+    var files = Array.prototype.slice.call(list || []);
+    if (!files.length) return;
+    var st = $('chat-status');
+    for (var i = 0; i < files.length; i++){
+      var f = files[i], name = f.name || 'archivo', low = name.toLowerCase();
+      try {
+        if (f.size > 15 * 1024 * 1024){ logLine('change', name + ': pesa más de 15 MB, no lo puedo adjuntar.'); continue; }
+        var canImg = !!(lim && lim.images), room = canImg ? Math.max(0, lim.images.maxCount - usedImages()) : 0;
+        if (/\.pdf$/.test(low) || f.type === 'application/pdf'){
+          if (!canImg){ logLine('change', 'Esta vista no permite mandar PDF como imágenes.'); continue; }
+          if (!room){ logLine('change', 'Ya llegaste al máximo de ' + lim.images.maxCount + ' páginas/imágenes por mensaje. Mandá este archivo en otro mensaje.'); continue; }
+          st.textContent = 'Preparando ' + name + '…';
+          var r = await pdfToImages(f, room);
+          chatState.files.push({name: name, kind: 'pdf', blobs: r.blobs, pages: r.total, sent: r.blobs.length});
+          if (r.blobs.length < r.total) logLine('change', name + ': tiene ' + r.total + ' páginas y solo caben ' + r.blobs.length + ' por mensaje. Se mandan las primeras.');
+        } else if (/^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|heif)$/.test(low)){
+          if (!canImg){ logLine('change', name + ': esta vista no permite enviar imágenes. Abrí el panel desde claude.ai.'); continue; }
+          if (!room){ logLine('change', 'Ya llegaste al máximo de ' + lim.images.maxCount + ' imágenes por mensaje.'); continue; }
+          st.textContent = 'Preparando ' + name + '…';
+          var okTypes = lim.images.mediaTypes || ['image/jpeg', 'image/png'];
+          var small = null;
+          try { small = await shrinkImage(f, okTypes); } catch (e) {}
+          if (!small){
+            if (okTypes.indexOf(f.type) >= 0 && f.size <= 4 * 1024 * 1024) small = f;
+            else { logLine('change', name + ': no pude achicar la imagen. Probá con una captura de pantalla o guardala como JPG más liviana.'); continue; }
+          }
+          chatState.files.push({name: name, kind: 'img', blobs: [small]});
+        } else if (/\.(csv|txt|md|json)$/.test(low) || /^text\//.test(f.type)){
+          var txt = await f.text();
+          chatState.files.push({name: name, kind: 'text', text: txt.length > 20000 ? txt.slice(0, 20000) + '\n[recortado]' : txt});
+        } else {
+          logLine('change', name + ': acepto PDF, imágenes, CSV y TXT. Para un Excel, guardalo como CSV o mandame una captura.');
+        }
+      } catch (e) {
+        logLine('change', 'No pude leer ' + name + (e && e.message ? ' (' + e.message + ')' : '') + '.');
+      }
+    }
+    st.textContent = '';
+    renderFiles();
+  }
+
+  var ERR = {
+    not_granted: 'No diste permiso para usar Claude en este panel. Recargá la página y aceptá el permiso.',
+    sampling_disabled: 'Claude no está disponible para tu cuenta en este momento.',
+    rate_limited: 'Se alcanzó el límite de uso. Esperá un rato y volvé a intentar.',
+    session_expired: 'Se venció tu sesión. Volvé a iniciar sesión en claude.ai.',
+    prompt_too_large: 'La conversación se hizo muy larga. Recargá la página para empezar de nuevo.',
+    refused: 'Claude no pudo procesar ese pedido. Probá decirlo de otra forma.',
+    empty_completion: 'No hubo respuesta. Probá de nuevo con otro texto.'
+  };
+
+  async function sendChat(sample){
+    var input = $('chat-input'), msg = input.value.trim(), files = chatState.files.slice();
+    if ((!msg && !files.length) || chatState.busy) return;
+    if (!msg) msg = 'Cargá este archivo en el panel. Si no podés deducir el mes o la tarjeta, preguntame.';
+    chatState.busy = true;
+    chatState.files = []; renderFiles();
+    input.value = '';
+    $('chat-send').disabled = true; $('chat-attach').disabled = true; $('chat-stop').hidden = false; $('chat-status').textContent = 'Pensando…';
+    refreshUndo();
+    var images = [], extra = '';
+    files.forEach(function(f){
+      if (f.kind === 'text') extra += '\n\n[Adjunto: ' + f.name + ']\n' + f.text;
+      else {
+        extra += '\n\n[Adjunto: ' + f.name + (f.kind === 'pdf' ? ' · páginas 1 a ' + f.blobs.length + ' de ' + f.pages : '') + ' · enviado como ' + (f.blobs.length > 1 ? f.blobs.length + ' imágenes, en orden' : 'imagen') + ' en este mensaje]';
+        images = images.concat(f.blobs);
+      }
+    });
+    logLine('user', msg + (files.length ? '\nAdjuntos: ' + files.map(function(f){ return f.name; }).join(', ') : ''));
+    var bubble = logLine('bot', 'Pensando…'); bubble.classList.add('pending');
+    chatState.ctl = new AbortController();
+    var turns = [{role: 'user', content: RULES}].concat(chatState.history.slice(-8)).concat([{role: 'user', content: msg + extra + ctxText()}]);
+    var opts = {
+      signal: chatState.ctl.signal,
+      modelTier: 'default',
+      tools: TOOLS,
+      onText: function(u){ bubble.classList.remove('pending'); bubble.textContent = u.text; $('chat-log').scrollTop = $('chat-log').scrollHeight; }
+    };
+    if (images.length) opts.images = images;
+    try {
+      var r = await sample(turns, opts);
+      chatState.history.push({role: 'user', content: msg + (files.length ? '\n[Adjuntos: ' + files.map(function(f){ return f.name; }).join(', ') + ']' : '')}, {role: 'assistant', content: r.text});
+      bubble.classList.remove('pending'); bubble.textContent = r.text;
+      if (r.truncated) logLine('change', 'La respuesta quedó cortada. Pedí menos cosas por vez.');
+    } catch (e) {
+      var code = e && e.code;
+      bubble.classList.remove('pending');
+      if (code === 'cancelled'){ bubble.textContent = (e.text ? e.text + '\n\n' : '') + 'Detenido. Lo que ya se guardó queda guardado (podés deshacerlo abajo).'; }
+      else if (code === 'image_rejected'){ bubble.textContent = 'No pude usar alguno de los archivos (muy grande o de un tipo no admitido). Probá con otro.'; }
+      else if (code === 'images_unavailable'){ bubble.textContent = 'Esta vista no permite enviar archivos como imágenes.'; }
+      else { bubble.textContent = (e && e.text ? e.text + '\n\n' : '') + (ERR[code] || 'Falló la conexión con Claude. Probá de nuevo.'); }
+    } finally {
+      chatState.busy = false; chatState.ctl = null;
+      $('chat-send').disabled = false; $('chat-attach').disabled = false; $('chat-stop').hidden = true; $('chat-status').textContent = '';
+      refreshUndo();
+      $('chat-log').scrollTop = $('chat-log').scrollHeight;
+    }
+  }
+
+  async function undoLast(){
+    var last = chatState.undo[chatState.undo.length - 1];
+    if (!last || chatState.busy || !DB) return;
+    $('chat-undo').disabled = true;
+    try {
+      await serial(async function(){ await DB.doc('meses/' + last.id).set(last.before); });
+      chatState.undo.pop();
+      try { await DB.doc('meta/panel').update({actualizado: hoyAR()}); } catch (e) {}
+      try { await DB.collection('historial').add({ts: new Date().toISOString(), mes: last.id, texto: 'Deshecho: ' + last.texto, origen: 'chat del panel'}); } catch (e) {}
+      logLine('change', '↶ Deshecho: ' + last.texto);
+    } catch (e) {
+      logLine('change', 'No se pudo deshacer. Probá de nuevo.');
+    }
+    refreshUndo();
+  }
+
+  var chatReady = false;
+  async function initChat(){
+    if (chatReady) return; chatReady = true;
+    var box = $('chat'), note = $('chat-off');
+    var sample = null, lim = null;
+    try { sample = await window.claude.use('sample'); } catch (e) {}
+    if (sample){ try { lim = await sample.limits(); } catch (e) {} }
+    if (!sample || !lim || !lim.tools){
+      box.hidden = true; note.hidden = true;
+      note.textContent = sample ? 'El chat necesita una versión más nueva de la app de Claude para ejecutar acciones.' : 'El chat no está disponible en esta vista. Abrí el panel desde claude.ai.';
+      return;
+    }
+    $('chat-form').addEventListener('submit', function(ev){ ev.preventDefault(); sendChat(sample); });
+    $('chat-input').addEventListener('keydown', function(ev){
+      if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing){ ev.preventDefault(); sendChat(sample); }
+    });
+    $('chat-stop').addEventListener('click', function(){ if (chatState.ctl) chatState.ctl.abort(); });
+    $('chat-undo').addEventListener('click', undoLast);
+    var fileIn = $('chat-file');
+    if (lim.images){ fileIn.setAttribute('accept', 'application/pdf,.pdf,image/*,.csv,.txt'); }
+    else { fileIn.setAttribute('accept', '.csv,.txt,.md,.json'); }
+    $('chat-attach').addEventListener('click', function(){ if (!chatState.busy) fileIn.click(); });
+    fileIn.addEventListener('change', function(){ addFiles(fileIn.files, lim).then(function(){ fileIn.value = ''; }); });
+    ['dragenter', 'dragover'].forEach(function(t){ box.addEventListener(t, function(ev){ ev.preventDefault(); box.classList.add('drag'); }); });
+    ['dragleave', 'drop'].forEach(function(t){ box.addEventListener(t, function(ev){ ev.preventDefault(); box.classList.remove('drag'); }); });
+    box.addEventListener('drop', function(ev){ if (!chatState.busy && ev.dataTransfer) addFiles(ev.dataTransfer.files, lim); });
+    $('chat-input').addEventListener('paste', function(ev){
+      var fl = ev.clipboardData && ev.clipboardData.files;
+      if (fl && fl.length && !chatState.busy){ ev.preventDefault(); addFiles(fl, lim); }
+    });
+    box.hidden = false; note.hidden = true;
+    refreshUndo();
+  }
+
+  renderEmpty('Cargando los meses…');
+
+  var boot = window.claude && typeof window.claude.use === 'function' ? window.claude.use('db') : Promise.resolve(null);
+  boot.then(function(db){
+    if (!db){
+      $('asof').textContent = 'Sin conexión';
+      renderEmpty('No se pudo abrir la base de datos del panel. Abrilo desde claude.ai con tu cuenta.');
+      return;
+    }
+    DB = db;
+    initChat();
+    db.collection('meses').orderBy('orden').onSnapshot(function(snap){
+      try {
+        onMonths(snap.docs.map(function(d){ return Object.assign({}, d.data() || {}, {id: d.id}); }));
+      } catch (e) {
+        $('asof').textContent = 'Error al mostrar';
+        renderEmpty('No se pudieron mostrar los meses: ' + (e && e.message ? e.message : 'error desconocido'));
+      }
+    }, function(){
+      $('asof').textContent = 'Sin conexión';
+      renderEmpty('Se perdió la conexión con la base del panel. Recargá la página.');
+    });
+    db.collection('pagos').onSnapshot(function(snap){
+      PAGOS = {};
+      snap.docs.forEach(function(d){ PAGOS[d.id] = (d.data() || {}).p || {}; });
+      if (MESES.length) render();
+    }, function(){});
+    db.doc('meta/panel').onSnapshot(function(s){
+      var m = s.exists ? s.data() : null;
+      if (m && m.actualizado) $('asof').textContent = 'Datos al ' + m.actualizado;
+      else if (MESES.length) $('asof').textContent = 'Datos cargados';
+    }, function(){});
+  }).catch(function(){
+    $('asof').textContent = 'Sin conexión';
+    renderEmpty('No se pudo abrir la base de datos del panel.');
+  });
+})();
+</script>
+
+
+</body></html>
